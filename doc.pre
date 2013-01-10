@@ -1,0 +1,82 @@
+This is the documentation for Prethon, a Python preprocessor. It is
+mostly text, with inline Prethon directives for programmatically generating
+more text. The documentation itself can be run through Prethon to see the
+results of the preprocessing.
+
+TAGS
+====
+
+The simplest form of injecting Python code into your document is
+the "normal" tag, surrounding the code with <@ @>. The code within the tags
+is executed by the Python interpreter. The emit() function is
+used to generate any text that replaces the Python code inline.
+
+<@
+for i in range(3):
+    emit('Hello, world!\n')
+@>
+
+The next is the expression tag, <$ 0 $>. This can be used to conveniently
+place the str() value of expressions into the document. There are
+<$ 'many ' * 4 $> ways of using it.
+
+Finally, we have the quote tag, <# #>, as well as the quote escape line, ##. This
+special tag uses the first line after the opening tag as the beginning of
+a Python block (typically a function definition). The remainder of the quoted
+text is transformed into Python code that emits that text. This can be useful
+for repeating large blocks of text without having to run it all directly through
+emit(). Quote escape lines break out of the quoting and allow for a line
+of Python to be inserted. This mechanism is probably best understood with an
+example:
+
+<# def emit_paragraph(nb):
+This is quoted paragraph number <$ nb $>. It is emitted by calling the
+enclosing function (emit_paragraph()).
+##if nb == 1:
+##      emit('Quote escapes are pretty useful sometimes, too.\n')
+#>
+
+Now we can emit lots of the same text, with small customizations:
+<@ for i in range(1, 4):
+    emit_paragraph(i)
+@>
+
+INCLUDES
+========
+
+The most basic multi-file support is through include(). This takes the
+relative path of another Prethon file, runs it through the preprocessor, and
+emits its output in place. This is directly analogous to the #include
+directive in the C/C++ preprocessor.
+
+A very similar function is include_py(). This takes the path of a Python file,
+executes it, and emits any output (coming from emit() calls in said Python
+code).
+
+Finally, there is the preprocessor state object, pre. This can be used to pass
+any variables around across include()/include_py() calls.
+
+To show these abilities, here's a rather convoluted little example, that first
+creates a temporary preprocessor file and then uses it. Each time the file is
+included, a counter is incremented, demonstrating the passing of state.
+
+<@
+path = '.temp.pre'
+with open(path, 'w') as f:
+    f.write('Preprocessor include!\n')
+    f.write('<' + '@ pre.display() @' + '>\n') # Need to make sure the tags survive
+
+def display():
+    pre.x += 1
+    emit('This is include number %s' % pre.x)
+    
+pre.x = 0
+pre.display = display
+
+include(path)
+include(path)
+include(path)
+
+import os
+os.remove(path)
+@>
